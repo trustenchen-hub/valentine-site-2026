@@ -676,6 +676,8 @@
         let bgMusicStarted = false;
         let bgMusicGain = null;
         let bgMusicTimer = null;
+        let bgPadOsc = null;
+        let bgPadGainNode = null;
 
         const defaultCryingText = '你确定吗？求求你了，当我的Valentine 吧！！！';
         const rethinkMessages = [
@@ -717,7 +719,11 @@
                 return null;
             }
             if (ctx.state === 'suspended') {
-                await ctx.resume();
+                try {
+                    await ctx.resume();
+                } catch (error) {
+                    return null;
+                }
             }
             return ctx;
         }
@@ -759,20 +765,21 @@
             if (!ctx || !bgMusicGain) {
                 return;
             }
-            const now = ctx.currentTime + 0.02;
+            const now = ctx.currentTime + 0.01;
             const sequence = [
-                { f: 261.63, t: 0.00, d: 0.30 },
-                { f: 329.63, t: 0.34, d: 0.26 },
-                { f: 392.00, t: 0.64, d: 0.30 },
-                { f: 523.25, t: 0.98, d: 0.35 },
-                { f: 392.00, t: 1.38, d: 0.28 },
-                { f: 329.63, t: 1.70, d: 0.26 },
-                { f: 349.23, t: 2.02, d: 0.30 },
-                { f: 392.00, t: 2.36, d: 0.34 }
+                { f: 392.00, t: 0.00, d: 0.24, g: 0.05 },
+                { f: 523.25, t: 0.28, d: 0.22, g: 0.052 },
+                { f: 587.33, t: 0.54, d: 0.22, g: 0.05 },
+                { f: 659.25, t: 0.80, d: 0.26, g: 0.053 },
+                { f: 587.33, t: 1.12, d: 0.22, g: 0.05 },
+                { f: 523.25, t: 1.38, d: 0.24, g: 0.05 },
+                { f: 493.88, t: 1.66, d: 0.24, g: 0.05 },
+                { f: 523.25, t: 1.94, d: 0.30, g: 0.055 }
             ];
 
             sequence.forEach((note) => {
-                playTone(note.f, note.d, 'sine', 0.016, now + note.t, bgMusicGain);
+                playTone(note.f, note.d, 'triangle', note.g, now + note.t, bgMusicGain);
+                playTone(note.f / 2, note.d + 0.05, 'sine', note.g * 0.35, now + note.t, bgMusicGain);
             });
         }
 
@@ -787,12 +794,22 @@
 
             bgMusicGain = ctx.createGain();
             bgMusicGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-            bgMusicGain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 1.4);
+            bgMusicGain.gain.exponentialRampToValueAtTime(0.13, ctx.currentTime + 0.9);
             bgMusicGain.connect(ctx.destination);
+
+            bgPadOsc = ctx.createOscillator();
+            bgPadGainNode = ctx.createGain();
+            bgPadOsc.type = 'sine';
+            bgPadOsc.frequency.setValueAtTime(196.00, ctx.currentTime);
+            bgPadGainNode.gain.setValueAtTime(0.0001, ctx.currentTime);
+            bgPadGainNode.gain.exponentialRampToValueAtTime(0.02, ctx.currentTime + 1.0);
+            bgPadOsc.connect(bgPadGainNode);
+            bgPadGainNode.connect(bgMusicGain);
+            bgPadOsc.start(ctx.currentTime);
 
             bgMusicStarted = true;
             playBackgroundPattern();
-            bgMusicTimer = setInterval(playBackgroundPattern, 2900);
+            bgMusicTimer = setInterval(playBackgroundPattern, 2300);
         }
 
         function bindClickSounds() {

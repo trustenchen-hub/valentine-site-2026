@@ -256,21 +256,6 @@
             padding: 15px 30px;
         }
 
-        .music-next-btn {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            z-index: 55;
-            background: rgba(255, 255, 255, 0.92);
-            color: #ff4f8d;
-            border: 2px solid #ffd0e2;
-            border-radius: 999px;
-            padding: 10px 16px;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 8px 18px rgba(255, 79, 141, 0.28);
-        }
-
         .yes-btn {
             background: #ff6b9d;
             color: white;
@@ -683,7 +668,6 @@
         </div>
     </div>
 
-    <button id="nextSongBtn" class="music-next-btn" onclick="playNextSong()">下一首歌 🎵</button>
     <audio id="bgMusic" preload="auto" playsinline></audio>
 
     <script>
@@ -692,6 +676,8 @@
         let rethinkCount = 0;
         let audioCtx = null;
         let currentSongIndex = 0;
+        let switchToSecondSongRequested = false;
+        let secondSongStarted = false;
 
         const defaultCryingText = '你确定吗？求求你了，当我的Valentine 吧！！！';
         const rethinkMessages = [
@@ -707,9 +693,9 @@
         const movingCryingPhoto = document.getElementById('movingCryingPhoto');
         const cryingMainImage = document.getElementById('cryingMainImage');
         const bgMusic = document.getElementById('bgMusic');
-        const nextSongBtn = document.getElementById('nextSongBtn');
         const playlist = [
-            { src: 'assets/music/song-01.mp3', title: '不是因为天气晴朗才爱你' }
+            { src: 'assets/music/song-01.mp3', title: '不是因为天气晴朗才爱你' },
+            { src: 'assets/music/song-02.mp3', title: '第二首歌' }
         ];
         const dummyCryingImage = `data:image/svg+xml;utf8,${encodeURIComponent(
             '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"400\" viewBox=\"0 0 400 400\"><defs><linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#ffd3e3\"/><stop offset=\"1\" stop-color=\"#ff92b9\"/></linearGradient></defs><rect width=\"400\" height=\"400\" fill=\"url(#g)\"/><circle cx=\"200\" cy=\"160\" r=\"90\" fill=\"#fff2f6\"/><circle cx=\"165\" cy=\"145\" r=\"18\" fill=\"#ff4f8d\"/><circle cx=\"235\" cy=\"145\" r=\"18\" fill=\"#ff4f8d\"/><path d=\"M145 205 Q200 255 255 205\" stroke=\"#ff4f8d\" stroke-width=\"10\" fill=\"none\" stroke-linecap=\"round\"/><text x=\"200\" y=\"335\" text-anchor=\"middle\" font-size=\"58\">😭</text></svg>'
@@ -796,8 +782,9 @@
             if (currentSrc !== song.src) {
                 bgMusic.src = song.src;
             }
-            bgMusic.loop = playlist.length === 1;
-            nextSongBtn.title = `当前歌曲：${song.title}`;
+            // Song 1: keep natural end event so we can decide whether to switch to song 2.
+            // Song 2: loop continuously once it starts.
+            bgMusic.loop = currentSongIndex === 1;
         }
 
         async function startMusic() {
@@ -813,17 +800,19 @@
             }
         }
 
-        async function playNextSong() {
-            if (playlist.length === 0) {
-                return;
+        async function switchToSecondSong() {
+            if (playlist.length < 2) {
+                return false;
             }
-            const nextIndex = normalizeSongIndex(currentSongIndex + 1);
-            const sameSong = nextIndex === currentSongIndex && bgMusic.getAttribute('src');
-            setSong(nextIndex);
-            if (sameSong) {
-                bgMusic.currentTime = 0;
+            setSong(1);
+            secondSongStarted = true;
+            try {
+                await bgMusic.play();
+                return true;
+            } catch (error) {
+                secondSongStarted = false;
+                return false;
             }
-            await startMusic();
         }
 
         function bindClickSounds() {
@@ -844,9 +833,17 @@
             }
         }
 
-        bgMusic.addEventListener('ended', () => {
-            if (playlist.length > 1) {
-                playNextSong();
+        bgMusic.addEventListener('ended', async () => {
+            if (currentSongIndex === 0) {
+                if (switchToSecondSongRequested && !secondSongStarted) {
+                    const switched = await switchToSecondSong();
+                    if (switched) {
+                        return;
+                    }
+                }
+                // If second song is not requested (or unavailable), keep song 1 running.
+                bgMusic.currentTime = 0;
+                await startMusic();
             }
         });
 
@@ -904,6 +901,7 @@
         }
 
         function showQuestion() {
+            switchToSecondSongRequested = true;
             document.getElementById('letterScreen').classList.remove('active');
             document.getElementById('questionScreen').classList.add('active');
 

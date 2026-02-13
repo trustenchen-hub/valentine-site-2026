@@ -564,7 +564,7 @@
     <div id="envelopeScreen" class="container active">
         <div class="popup envelope-popup">
             <div class="envelope-layout">
-                <button class="envelope-trigger" id="envelopeTrigger" onclick="openEnvelope()" aria-label="Open envelope">
+                <button class="envelope-trigger" id="envelopeTrigger" data-sfx="envelope" onclick="openEnvelope()" aria-label="Open envelope">
                     <div class="envelope">
                         <div class="envelope-body"></div>
                         <div class="envelope-flap"></div>
@@ -592,7 +592,7 @@
             </div>
             <div class="mystery-cta">
                 <div class="mystery-hint">点我点我！<span class="mystery-emoji" aria-hidden="true">👀✨</span></div>
-                <button class="yes-btn mystery-btn" onclick="showQuestion()">神秘按钮</button>
+                <button class="yes-btn mystery-btn" data-sfx="mystery" onclick="showQuestion()">神秘按钮</button>
             </div>
         </div>
     </div>
@@ -602,8 +602,8 @@
         <div class="popup">
             <div class="question">Would you be my Valentine? 💕</div>
             <div class="buttons">
-                <button class="yes-btn" id="yesBtn" onclick="handleYes()">我要！</button>
-                <button class="no-btn" id="noBtn" onclick="handleNo()">不用了，谢谢。</button>
+                <button class="yes-btn" id="yesBtn" data-sfx="yes" onclick="handleYes()">我要！</button>
+                <button class="no-btn" id="noBtn" data-sfx="no" onclick="handleNo()">不用了，谢谢。</button>
             </div>
         </div>
     </div>
@@ -613,10 +613,10 @@
         <div class="popup">
             <div class="question">选择你的情人节礼物！🎁</div>
             <div class="options-container">
-                <div class="option-card" onclick="showCongrats()">🍽️ 浪漫晚餐</div>
-                <div class="option-card" onclick="showCongrats()">💐 漂亮花束</div>
-                <div class="option-card" onclick="showCongrats()">🎬 一起看电影</div>
-                <div class="option-card" onclick="showCongrats()">🎁 神秘礼物</div>
+                <div class="option-card" data-sfx="gift" onclick="showCongrats()">🍽️ 浪漫晚餐</div>
+                <div class="option-card" data-sfx="gift" onclick="showCongrats()">💐 漂亮花束</div>
+                <div class="option-card" data-sfx="gift" onclick="showCongrats()">🎬 一起看电影</div>
+                <div class="option-card" data-sfx="gift" onclick="showCongrats()">🎁 神秘礼物</div>
             </div>
         </div>
     </div>
@@ -644,8 +644,8 @@
             <img id="cryingMainImage" class="crying-image" src="assets/crying-me.jpg" alt="Crying photo of me">
             <div id="cryingDialog" class="crying-dialog">你确定吗？求求你了，当我的Valentine 吧！！！</div>
             <div class="buttons">
-                <button class="yes-btn" onclick="acceptFromModal()">好吧，我愿意 💖</button>
-                <button class="no-btn" onclick="rethinkFromModal()">再想想</button>
+                <button class="yes-btn" data-sfx="accept" onclick="acceptFromModal()">好吧，我愿意 💖</button>
+                <button class="no-btn" data-sfx="rethink" onclick="rethinkFromModal()">再想想</button>
             </div>
         </div>
     </div>
@@ -736,14 +736,91 @@
             osc.stop(end + 0.02);
         }
 
-        async function playClickSfx() {
+        function playSweep(startFreq, endFreq, duration, type, gainValue, startAt, destinationNode) {
+            const ctx = ensureAudioContext();
+            if (!ctx) {
+                return;
+            }
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const safeStart = Math.max(startAt, ctx.currentTime);
+            const end = safeStart + duration;
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(startFreq, safeStart);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), end);
+            gain.gain.setValueAtTime(0.0001, safeStart);
+            gain.gain.exponentialRampToValueAtTime(gainValue, safeStart + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+            osc.connect(gain);
+            gain.connect(destinationNode || ctx.destination);
+            osc.start(safeStart);
+            osc.stop(end + 0.02);
+        }
+
+        async function playSfx(kind = 'click') {
             const ctx = await unlockAudio();
             if (!ctx) {
                 return;
             }
             const now = ctx.currentTime;
-            playTone(880, 0.04, 'triangle', 0.045, now, null);
-            playTone(1220, 0.05, 'sine', 0.03, now + 0.045, null);
+
+            switch (kind) {
+                case 'envelope':
+                    playTone(392, 0.09, 'triangle', 0.05, now, null);
+                    playTone(523.25, 0.1, 'triangle', 0.045, now + 0.07, null);
+                    playTone(659.25, 0.12, 'sine', 0.038, now + 0.14, null);
+                    break;
+                case 'mystery':
+                    playTone(1108.73, 0.06, 'square', 0.03, now, null);
+                    playTone(1318.51, 0.06, 'triangle', 0.028, now + 0.05, null);
+                    playTone(1567.98, 0.08, 'sine', 0.025, now + 0.1, null);
+                    break;
+                case 'yes':
+                case 'accept':
+                    playTone(523.25, 0.08, 'sine', 0.04, now, null);
+                    playTone(659.25, 0.1, 'sine', 0.04, now + 0.05, null);
+                    playTone(783.99, 0.12, 'triangle', 0.038, now + 0.1, null);
+                    break;
+                case 'no':
+                    playTone(392, 0.08, 'triangle', 0.04, now, null);
+                    playTone(329.63, 0.09, 'triangle', 0.032, now + 0.06, null);
+                    break;
+                case 'rethink':
+                    playTone(349.23, 0.1, 'sine', 0.035, now, null);
+                    playTone(293.66, 0.12, 'sine', 0.03, now + 0.08, null);
+                    break;
+                case 'gift':
+                    playTone(987.77, 0.08, 'triangle', 0.03, now, null);
+                    playTone(1318.51, 0.12, 'sine', 0.028, now + 0.06, null);
+                    break;
+                case 'runaway':
+                    playSweep(1100, 420, 0.15, 'square', 0.028, now, null);
+                    break;
+                case 'modal':
+                    playTone(261.63, 0.12, 'triangle', 0.03, now, null);
+                    playTone(196, 0.18, 'sine', 0.025, now + 0.08, null);
+                    break;
+                case 'screen':
+                    playTone(659.25, 0.06, 'triangle', 0.03, now, null);
+                    playTone(880, 0.09, 'sine', 0.026, now + 0.045, null);
+                    break;
+                case 'heartBurst':
+                    playTone(1046.5, 0.045, 'sine', 0.015, now, null);
+                    playTone(1396.9, 0.06, 'triangle', 0.012, now + 0.03, null);
+                    break;
+                case 'congrats':
+                    playTone(523.25, 0.12, 'triangle', 0.04, now, null);
+                    playTone(659.25, 0.12, 'triangle', 0.036, now + 0.07, null);
+                    playTone(783.99, 0.12, 'triangle', 0.036, now + 0.14, null);
+                    playTone(1046.5, 0.2, 'sine', 0.03, now + 0.21, null);
+                    break;
+                default:
+                    playTone(880, 0.04, 'triangle', 0.04, now, null);
+                    playTone(1220, 0.05, 'sine', 0.03, now + 0.045, null);
+                    break;
+            }
         }
 
         function normalizeSongIndex(index) {
@@ -808,7 +885,7 @@
             const clickables = document.querySelectorAll('button, .option-card');
             clickables.forEach((el) => {
                 el.addEventListener('click', () => {
-                    playClickSfx();
+                    playSfx(el.dataset.sfx || 'click');
                 });
             });
         }
@@ -840,10 +917,7 @@
             bindClickSounds();
             primeFirstSongBuffer();
             startMusic();
-
-            for (let i = 0; i < 50; i++) {
-                setTimeout(() => createHeart(), i * 50);
-            }
+            launchHeartBurst(50, 50, 'heartBurst');
 
             setInterval(() => {
                 createHeart();
@@ -865,6 +939,13 @@
             }, 7000);
         }
 
+        function launchHeartBurst(count, intervalMs, sfxKind = 'heartBurst') {
+            playSfx(sfxKind);
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => createHeart(), i * intervalMs);
+            }
+        }
+
         function openEnvelope() {
             if (envelopeOpened) {
                 return;
@@ -872,6 +953,7 @@
 
             envelopeOpened = true;
             startMusic();
+            playSfx('screen');
             const trigger = document.getElementById('envelopeTrigger');
             trigger.style.pointerEvents = 'none';
             trigger.classList.add('opened');
@@ -879,10 +961,7 @@
             setTimeout(() => {
                 document.getElementById('envelopeScreen').classList.remove('active');
                 document.getElementById('letterScreen').classList.add('active');
-
-                for (let i = 0; i < 22; i++) {
-                    setTimeout(() => createHeart(), i * 30);
-                }
+                launchHeartBurst(22, 30, 'heartBurst');
             }, 360);
         }
 
@@ -890,10 +969,8 @@
             switchToSecondSong();
             document.getElementById('letterScreen').classList.remove('active');
             document.getElementById('questionScreen').classList.add('active');
-
-            for (let i = 0; i < 24; i++) {
-                setTimeout(() => createHeart(), i * 35);
-            }
+            playSfx('screen');
+            launchHeartBurst(24, 35, 'heartBurst');
         }
 
         function moveNoButtonRandom() {
@@ -907,6 +984,7 @@
             noBtn.classList.add('runaway');
             noBtn.style.left = `${nextX}px`;
             noBtn.style.top = `${nextY}px`;
+            playSfx('runaway');
         }
 
         function resetNoButton() {
@@ -931,6 +1009,7 @@
             rethinkCount = 0;
             cryingDialog.textContent = defaultCryingText;
             document.getElementById('cryingModal').classList.add('active');
+            playSfx('modal');
         }
 
         function closeCryingModal() {
@@ -955,19 +1034,15 @@
             document.getElementById('optionsScreen').classList.add('active');
             closeCryingModal();
             resetNoButton();
-
-            for (let i = 0; i < 30; i++) {
-                setTimeout(() => createHeart(), i * 30);
-            }
+            playSfx('screen');
+            launchHeartBurst(30, 30, 'heartBurst');
         }
 
         function showCongrats() {
             document.getElementById('optionsScreen').classList.remove('active');
             document.getElementById('congratsScreen').classList.add('active');
-
-            for (let i = 0; i < 40; i++) {
-                setTimeout(() => createHeart(), i * 40);
-            }
+            playSfx('congrats');
+            launchHeartBurst(40, 40, 'heartBurst');
         }
     </script>
 </body>

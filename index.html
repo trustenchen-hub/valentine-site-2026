@@ -659,6 +659,7 @@
         let audioCtx = null;
         let currentSongIndex = 0;
         let firstSongPrimed = false;
+        const sfxGainMultiplier = 2.4;
 
         const defaultCryingText = '你确定吗？求求你了，当我的Valentine 吧！！！';
         const rethinkMessages = [
@@ -699,17 +700,14 @@
             return audioCtx;
         }
 
-        async function unlockAudio() {
+        function unlockAudio() {
             const ctx = ensureAudioContext();
             if (!ctx) {
                 return null;
             }
             if (ctx.state === 'suspended') {
-                try {
-                    await ctx.resume();
-                } catch (error) {
-                    return null;
-                }
+                // Keep resume synchronous from the click stack for iOS Safari.
+                ctx.resume().catch(() => {});
             }
             return ctx;
         }
@@ -727,7 +725,7 @@
             osc.type = type;
             osc.frequency.setValueAtTime(freq, safeStart);
             gain.gain.setValueAtTime(0.0001, safeStart);
-            gain.gain.exponentialRampToValueAtTime(gainValue, safeStart + 0.01);
+            gain.gain.exponentialRampToValueAtTime(Math.min(0.22, gainValue * sfxGainMultiplier), safeStart + 0.01);
             gain.gain.exponentialRampToValueAtTime(0.0001, end);
 
             osc.connect(gain);
@@ -750,7 +748,7 @@
             osc.frequency.setValueAtTime(startFreq, safeStart);
             osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), end);
             gain.gain.setValueAtTime(0.0001, safeStart);
-            gain.gain.exponentialRampToValueAtTime(gainValue, safeStart + 0.01);
+            gain.gain.exponentialRampToValueAtTime(Math.min(0.22, gainValue * sfxGainMultiplier), safeStart + 0.01);
             gain.gain.exponentialRampToValueAtTime(0.0001, end);
 
             osc.connect(gain);
@@ -759,12 +757,12 @@
             osc.stop(end + 0.02);
         }
 
-        async function playSfx(kind = 'click') {
-            const ctx = await unlockAudio();
+        function playSfx(kind = 'click') {
+            const ctx = unlockAudio();
             if (!ctx) {
                 return;
             }
-            const now = ctx.currentTime;
+            const now = ctx.currentTime + 0.001;
 
             switch (kind) {
                 case 'envelope':
@@ -894,6 +892,7 @@
         primeFirstSongBuffer();
 
         function tryStartMusicAfterInteraction() {
+            unlockAudio();
             if (bgMusic.paused) {
                 startMusic();
             }

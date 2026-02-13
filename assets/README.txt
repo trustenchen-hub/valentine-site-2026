@@ -1,3 +1,4 @@
 Put your media files here:
-- background-music.mp3
+- music/song-01.mp3
+- music/song-02.mp3
 - crying-me.jpg

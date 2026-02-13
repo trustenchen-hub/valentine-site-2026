@@ -256,6 +256,21 @@
             padding: 15px 30px;
         }
 
+        .music-next-btn {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 55;
+            background: rgba(255, 255, 255, 0.92);
+            color: #ff4f8d;
+            border: 2px solid #ffd0e2;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 8px 18px rgba(255, 79, 141, 0.28);
+        }
+
         .yes-btn {
             background: #ff6b9d;
             color: white;
@@ -668,16 +683,15 @@
         </div>
     </div>
 
+    <button id="nextSongBtn" class="music-next-btn" onclick="playNextSong()">下一首歌 🎵</button>
+    <audio id="bgMusic" preload="auto" playsinline></audio>
+
     <script>
         let noClickCount = 0;
         let envelopeOpened = false;
         let rethinkCount = 0;
         let audioCtx = null;
-        let bgMusicStarted = false;
-        let bgMusicGain = null;
-        let bgMusicTimer = null;
-        let bgPadOsc = null;
-        let bgPadGainNode = null;
+        let currentSongIndex = 0;
 
         const defaultCryingText = '你确定吗？求求你了，当我的Valentine 吧！！！';
         const rethinkMessages = [
@@ -692,6 +706,11 @@
         const cryingDialog = document.getElementById('cryingDialog');
         const movingCryingPhoto = document.getElementById('movingCryingPhoto');
         const cryingMainImage = document.getElementById('cryingMainImage');
+        const bgMusic = document.getElementById('bgMusic');
+        const nextSongBtn = document.getElementById('nextSongBtn');
+        const playlist = [
+            { src: 'assets/music/song-01.mp3', title: '不是因为天气晴朗才爱你' }
+        ];
         const dummyCryingImage = `data:image/svg+xml;utf8,${encodeURIComponent(
             '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"400\" viewBox=\"0 0 400 400\"><defs><linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#ffd3e3\"/><stop offset=\"1\" stop-color=\"#ff92b9\"/></linearGradient></defs><rect width=\"400\" height=\"400\" fill=\"url(#g)\"/><circle cx=\"200\" cy=\"160\" r=\"90\" fill=\"#fff2f6\"/><circle cx=\"165\" cy=\"145\" r=\"18\" fill=\"#ff4f8d\"/><circle cx=\"235\" cy=\"145\" r=\"18\" fill=\"#ff4f8d\"/><path d=\"M145 205 Q200 255 255 205\" stroke=\"#ff4f8d\" stroke-width=\"10\" fill=\"none\" stroke-linecap=\"round\"/><text x=\"200\" y=\"335\" text-anchor=\"middle\" font-size=\"58\">😭</text></svg>'
         )}`;
@@ -760,56 +779,51 @@
             playTone(1220, 0.05, 'sine', 0.03, now + 0.045, null);
         }
 
-        function playBackgroundPattern() {
-            const ctx = ensureAudioContext();
-            if (!ctx || !bgMusicGain) {
-                return;
+        function normalizeSongIndex(index) {
+            if (playlist.length === 0) {
+                return 0;
             }
-            const now = ctx.currentTime + 0.01;
-            const sequence = [
-                { f: 392.00, t: 0.00, d: 0.24, g: 0.05 },
-                { f: 523.25, t: 0.28, d: 0.22, g: 0.052 },
-                { f: 587.33, t: 0.54, d: 0.22, g: 0.05 },
-                { f: 659.25, t: 0.80, d: 0.26, g: 0.053 },
-                { f: 587.33, t: 1.12, d: 0.22, g: 0.05 },
-                { f: 523.25, t: 1.38, d: 0.24, g: 0.05 },
-                { f: 493.88, t: 1.66, d: 0.24, g: 0.05 },
-                { f: 523.25, t: 1.94, d: 0.30, g: 0.055 }
-            ];
-
-            sequence.forEach((note) => {
-                playTone(note.f, note.d, 'triangle', note.g, now + note.t, bgMusicGain);
-                playTone(note.f / 2, note.d + 0.05, 'sine', note.g * 0.35, now + note.t, bgMusicGain);
-            });
+            return (index + playlist.length) % playlist.length;
         }
 
-        async function startBackgroundMusic() {
-            if (bgMusicStarted) {
+        function setSong(index) {
+            if (playlist.length === 0) {
                 return;
             }
-            const ctx = await unlockAudio();
-            if (!ctx) {
+            currentSongIndex = normalizeSongIndex(index);
+            const song = playlist[currentSongIndex];
+            const currentSrc = bgMusic.getAttribute('src');
+            if (currentSrc !== song.src) {
+                bgMusic.src = song.src;
+            }
+            bgMusic.loop = playlist.length === 1;
+            nextSongBtn.title = `当前歌曲：${song.title}`;
+        }
+
+        async function startMusic() {
+            if (playlist.length === 0) {
                 return;
             }
+            setSong(currentSongIndex);
+            bgMusic.volume = 0.85;
+            try {
+                await bgMusic.play();
+            } catch (error) {
+                // Browser autoplay policies may block the first attempt until user interaction.
+            }
+        }
 
-            bgMusicGain = ctx.createGain();
-            bgMusicGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-            bgMusicGain.gain.exponentialRampToValueAtTime(0.13, ctx.currentTime + 0.9);
-            bgMusicGain.connect(ctx.destination);
-
-            bgPadOsc = ctx.createOscillator();
-            bgPadGainNode = ctx.createGain();
-            bgPadOsc.type = 'sine';
-            bgPadOsc.frequency.setValueAtTime(196.00, ctx.currentTime);
-            bgPadGainNode.gain.setValueAtTime(0.0001, ctx.currentTime);
-            bgPadGainNode.gain.exponentialRampToValueAtTime(0.02, ctx.currentTime + 1.0);
-            bgPadOsc.connect(bgPadGainNode);
-            bgPadGainNode.connect(bgMusicGain);
-            bgPadOsc.start(ctx.currentTime);
-
-            bgMusicStarted = true;
-            playBackgroundPattern();
-            bgMusicTimer = setInterval(playBackgroundPattern, 2300);
+        async function playNextSong() {
+            if (playlist.length === 0) {
+                return;
+            }
+            const nextIndex = normalizeSongIndex(currentSongIndex + 1);
+            const sameSong = nextIndex === currentSongIndex && bgMusic.getAttribute('src');
+            setSong(nextIndex);
+            if (sameSong) {
+                bgMusic.currentTime = 0;
+            }
+            await startMusic();
         }
 
         function bindClickSounds() {
@@ -824,8 +838,25 @@
         applyImageFallback(movingCryingPhoto);
         applyImageFallback(cryingMainImage);
 
+        function tryStartMusicAfterInteraction() {
+            if (bgMusic.paused) {
+                startMusic();
+            }
+        }
+
+        bgMusic.addEventListener('ended', () => {
+            if (playlist.length > 1) {
+                playNextSong();
+            }
+        });
+
+        window.addEventListener('pointerdown', tryStartMusicAfterInteraction, { once: true });
+        window.addEventListener('keydown', tryStartMusicAfterInteraction, { once: true });
+
         window.addEventListener('load', () => {
             bindClickSounds();
+            setSong(0);
+            startMusic();
 
             for (let i = 0; i < 50; i++) {
                 setTimeout(() => createHeart(), i * 50);
@@ -857,7 +888,7 @@
             }
 
             envelopeOpened = true;
-            startBackgroundMusic();
+            startMusic();
             const trigger = document.getElementById('envelopeTrigger');
             trigger.style.pointerEvents = 'none';
             trigger.classList.add('opened');

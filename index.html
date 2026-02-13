@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Will You Be My Valentine? 💕</title>
+    <link rel="preload" as="audio" href="assets/music/song-01.mp3" type="audio/mpeg">
     <style>
         * {
             margin: 0;
@@ -676,6 +677,7 @@
         let rethinkCount = 0;
         let audioCtx = null;
         let currentSongIndex = 0;
+        let firstSongPrimed = false;
 
         const defaultCryingText = '你确定吗？求求你了，当我的Valentine 吧！！！';
         const rethinkMessages = [
@@ -691,6 +693,7 @@
         const movingCryingPhoto = document.getElementById('movingCryingPhoto');
         const cryingMainImage = document.getElementById('cryingMainImage');
         const bgMusic = document.getElementById('bgMusic');
+        const envelopeTrigger = document.getElementById('envelopeTrigger');
         const playlist = [
             { src: 'assets/music/song-01.mp3', title: '不是因为天气晴朗才爱你' },
             { src: 'assets/music/song-02.mp3', title: '第二首歌' }
@@ -784,6 +787,16 @@
             bgMusic.loop = currentSongIndex === 1;
         }
 
+        function primeFirstSongBuffer() {
+            if (firstSongPrimed || playlist.length === 0) {
+                return;
+            }
+            setSong(0);
+            bgMusic.preload = 'auto';
+            bgMusic.load();
+            firstSongPrimed = true;
+        }
+
         async function startMusic() {
             if (playlist.length === 0) {
                 return;
@@ -822,6 +835,7 @@
 
         applyImageFallback(movingCryingPhoto);
         applyImageFallback(cryingMainImage);
+        primeFirstSongBuffer();
 
         function tryStartMusicAfterInteraction() {
             if (bgMusic.paused) {
@@ -838,10 +852,14 @@
 
         window.addEventListener('pointerdown', tryStartMusicAfterInteraction, { once: true });
         window.addEventListener('keydown', tryStartMusicAfterInteraction, { once: true });
+        envelopeTrigger.addEventListener('pointerdown', () => {
+            primeFirstSongBuffer();
+            startMusic();
+        }, { once: true });
 
         window.addEventListener('load', () => {
             bindClickSounds();
-            setSong(0);
+            primeFirstSongBuffer();
             startMusic();
 
             for (let i = 0; i < 50; i++) {

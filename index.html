@@ -676,8 +676,6 @@
         let rethinkCount = 0;
         let audioCtx = null;
         let currentSongIndex = 0;
-        let switchToSecondSongRequested = false;
-        let secondSongStarted = false;
 
         const defaultCryingText = '你确定吗？求求你了，当我的Valentine 吧！！！';
         const rethinkMessages = [
@@ -782,8 +780,7 @@
             if (currentSrc !== song.src) {
                 bgMusic.src = song.src;
             }
-            // Song 1: keep natural end event so we can decide whether to switch to song 2.
-            // Song 2: loop continuously once it starts.
+            // Song 1 loops via ended handler; song 2 loops natively once switched.
             bgMusic.loop = currentSongIndex === 1;
         }
 
@@ -805,12 +802,11 @@
                 return false;
             }
             setSong(1);
-            secondSongStarted = true;
+            bgMusic.currentTime = 0;
             try {
                 await bgMusic.play();
                 return true;
             } catch (error) {
-                secondSongStarted = false;
                 return false;
             }
         }
@@ -835,13 +831,6 @@
 
         bgMusic.addEventListener('ended', async () => {
             if (currentSongIndex === 0) {
-                if (switchToSecondSongRequested && !secondSongStarted) {
-                    const switched = await switchToSecondSong();
-                    if (switched) {
-                        return;
-                    }
-                }
-                // If second song is not requested (or unavailable), keep song 1 running.
                 bgMusic.currentTime = 0;
                 await startMusic();
             }
@@ -901,7 +890,7 @@
         }
 
         function showQuestion() {
-            switchToSecondSongRequested = true;
+            switchToSecondSong();
             document.getElementById('letterScreen').classList.remove('active');
             document.getElementById('questionScreen').classList.add('active');
 

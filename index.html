@@ -518,24 +518,6 @@
             margin-bottom: 14px;
         }
 
-        .moving-crying-photo {
-            position: fixed;
-            width: 120px;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 16px;
-            border: 3px solid #fff;
-            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
-            z-index: 45;
-            pointer-events: none;
-            transition: left 0.35s ease, top 0.35s ease, transform 0.35s ease;
-            display: none;
-        }
-
-        .modal.active .moving-crying-photo {
-            display: block;
-        }
-
         .crying-dialog {
             font-size: 22px;
             line-height: 1.5;
@@ -658,7 +640,6 @@
 
     <!-- 6th-click Crying Popup -->
     <div id="cryingModal" class="modal">
-        <img id="movingCryingPhoto" class="moving-crying-photo" src="assets/crying-me.jpg" alt="Moving crying photo">
         <div class="crying-card">
             <img id="cryingMainImage" class="crying-image" src="assets/crying-me.jpg" alt="Crying photo of me">
             <div id="cryingDialog" class="crying-dialog">你确定吗？求求你了，当我的Valentine 吧！！！</div>
@@ -690,7 +671,6 @@
         ];
 
         const cryingDialog = document.getElementById('cryingDialog');
-        const movingCryingPhoto = document.getElementById('movingCryingPhoto');
         const cryingMainImage = document.getElementById('cryingMainImage');
         const bgMusic = document.getElementById('bgMusic');
         const envelopeTrigger = document.getElementById('envelopeTrigger');
@@ -833,7 +813,6 @@
             });
         }
 
-        applyImageFallback(movingCryingPhoto);
         applyImageFallback(cryingMainImage);
         primeFirstSongBuffer();
 
@@ -948,24 +927,10 @@
             showCryingModal();
         }
 
-        function moveCryingPhotoRandom() {
-            const padding = 16;
-            const maxX = Math.max(padding, window.innerWidth - movingCryingPhoto.offsetWidth - padding);
-            const maxY = Math.max(padding, window.innerHeight - movingCryingPhoto.offsetHeight - padding);
-            const nextX = Math.floor(Math.random() * (maxX - padding + 1)) + padding;
-            const nextY = Math.floor(Math.random() * (maxY - padding + 1)) + padding;
-            const rotateDeg = Math.floor(Math.random() * 16) - 8;
-
-            movingCryingPhoto.style.left = `${nextX}px`;
-            movingCryingPhoto.style.top = `${nextY}px`;
-            movingCryingPhoto.style.transform = `rotate(${rotateDeg}deg)`;
-        }
-
         function showCryingModal() {
             rethinkCount = 0;
             cryingDialog.textContent = defaultCryingText;
             document.getElementById('cryingModal').classList.add('active');
-            moveCryingPhotoRandom();
         }
 
         function closeCryingModal() {
@@ -976,7 +941,6 @@
             rethinkCount += 1;
             const index = Math.min(rethinkCount - 1, rethinkMessages.length - 1);
             cryingDialog.textContent = rethinkMessages[index];
-            moveCryingPhotoRandom();
         }
 
         function acceptFromModal() {
